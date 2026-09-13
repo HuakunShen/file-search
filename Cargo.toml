@@ -19,3 +19,13 @@ repository = "https://github.com/HuakunShen/file-search"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+# The shipped artifact of this workspace is the kfs-napi cdylib; without
+# these the addon carries every engine symbol (22MB vs 15MB on
+# darwin-arm64). Only affects this workspace's own release builds —
+# consumers building these crates inside another workspace keep their
+# own profile.
+[profile.release]
+strip = "symbols"
+lto = "thin"
+codegen-units = 1
