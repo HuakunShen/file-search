@@ -13,13 +13,13 @@ pinned git submodule. Consumers pin a commit SHA, never a floating branch.
 
 | Shared revision | Schema | Kunkun pin | Xross pin |
 |---|---|---|---|
-| `0cfe7c27e25eea3b841f481bdf671575f35f5d0c` (`v0.1.1`) | 1 | `da9225e3c` (branch `file-search-submodule`) | `176c8385` (branch `file-search-vendor`) |
+| `v0.1.3` (this repository) | 1 | branch `file-search-submodule` | branch `file-search-vendor` |
 
-`v0.1.0` (`e21a1de8`) is a historical snapshot superseded before any
-consumer pinned it: its NAPI generated artifacts were baselined with
-`@napi-rs/cli` 3.9.1 while Kunkun's lockfile resolves 3.6.2, so a
-consumer-side build rewrote them. See `CONTRIBUTING.md` for the update
-protocol and rollback.
+Provenance: extracted from Kunkun's `crates/file-search` (nine capability
+commits, `22a27b45d..401423928`); briefly merged into space-lens as
+`packages/kfs-*` (tag `kfs-v0.1.2` on HuakunShen/space-lens) and returned
+to a standalone repository in plan 0064. See `MIGRATION.md`. See
+`CONTRIBUTING.md` for the update protocol and rollback.
 
 ## Crates
 
