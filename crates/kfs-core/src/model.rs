@@ -8,191 +8,192 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchRoot {
-    pub path: PathBuf,
-    pub enabled: bool,
-    pub priority: i32,
-    pub include_hidden: bool,
-    pub include_ignored: bool,
+  pub path: PathBuf,
+  pub enabled: bool,
+  pub priority: i32,
+  pub include_hidden: bool,
+  pub include_ignored: bool,
 }
 
 impl SearchRoot {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            path: normalize_root_path(path.into()),
-            enabled: true,
-            priority: 0,
-            include_hidden: false,
-            include_ignored: false,
-        }
+  pub fn new(path: impl Into<PathBuf>) -> Self {
+    Self {
+      path: normalize_root_path(path.into()),
+      enabled: true,
+      priority: 0,
+      include_hidden: false,
+      include_ignored: false,
     }
+  }
 
-    pub fn disabled(mut self) -> Self {
-        self.enabled = false;
-        self
-    }
+  pub fn disabled(mut self) -> Self {
+    self.enabled = false;
+    self
+  }
 
-    pub fn with_priority(mut self, priority: i32) -> Self {
-        self.priority = priority;
-        self
-    }
+  pub fn with_priority(mut self, priority: i32) -> Self {
+    self.priority = priority;
+    self
+  }
 
-    pub fn include_hidden(mut self, include_hidden: bool) -> Self {
-        self.include_hidden = include_hidden;
-        self
-    }
+  pub fn include_hidden(mut self, include_hidden: bool) -> Self {
+    self.include_hidden = include_hidden;
+    self
+  }
 
-    pub fn include_ignored(mut self, include_ignored: bool) -> Self {
-        self.include_ignored = include_ignored;
-        self
-    }
+  pub fn include_ignored(mut self, include_ignored: bool) -> Self {
+    self.include_ignored = include_ignored;
+    self
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SearchConfig {
-    pub roots: Vec<SearchRoot>,
+  pub roots: Vec<SearchRoot>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchQuery {
-    pub query: String,
-    pub limit: usize,
-    pub include_hidden: bool,
-    pub include_ignored: bool,
-    pub extensions: Vec<String>,
+  pub query: String,
+  pub limit: usize,
+  pub include_hidden: bool,
+  pub include_ignored: bool,
+  pub extensions: Vec<String>,
 }
 
 impl SearchQuery {
-    pub fn new(query: impl Into<String>) -> Self {
-        Self {
-            query: query.into(),
-            limit: 20,
-            include_hidden: false,
-            include_ignored: false,
-            extensions: Vec::new(),
-        }
+  pub fn new(query: impl Into<String>) -> Self {
+    Self {
+      query: query.into(),
+      limit: 20,
+      include_hidden: false,
+      include_ignored: false,
+      extensions: Vec::new(),
     }
+  }
 
-    pub fn with_limit(mut self, limit: usize) -> Self {
-        self.limit = limit;
-        self
-    }
+  pub fn with_limit(mut self, limit: usize) -> Self {
+    self.limit = limit;
+    self
+  }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryKind {
-    File,
-    Directory,
-    Other,
+  File,
+  Directory,
+  Other,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchCandidate {
-    pub path: PathBuf,
-    pub kind: EntryKind,
-    pub provider: String,
+  pub path: PathBuf,
+  pub kind: EntryKind,
+  pub provider: String,
 }
 
 impl SearchCandidate {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            path: path.into(),
-            kind: EntryKind::Other,
-            provider: "test".to_string(),
-        }
+  pub fn new(path: impl Into<PathBuf>) -> Self {
+    Self {
+      path: path.into(),
+      kind: EntryKind::Other,
+      provider: "test".to_string(),
     }
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchKind {
-    Empty,
-    ExactBasename,
-    BasenamePrefix,
-    BasenameToken,
-    PathComponent,
-    Substring,
-    /// Query characters matched the filename in order after separators were removed.
-    Fuzzy,
-    Extension,
-    RootPriority,
+  Empty,
+  ExactBasename,
+  BasenamePrefix,
+  BasenameToken,
+  PathComponent,
+  Substring,
+  /// Query characters matched the filename in order after separators were removed.
+  Fuzzy,
+  Extension,
+  RootPriority,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchResult {
-    pub path: PathBuf,
-    pub score: i32,
-    pub provider: String,
-    pub matches: Vec<MatchKind>,
+  pub path: PathBuf,
+  pub score: i32,
+  pub provider: String,
+  pub matches: Vec<MatchKind>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PolicyDecision {
-    pub path: PathBuf,
-    pub allowed: bool,
-    pub root: Option<PathBuf>,
-    pub root_priority: i32,
-    pub hidden: bool,
-    pub ignored: bool,
-    pub sensitive: bool,
-    pub reasons: Vec<String>,
+  pub path: PathBuf,
+  pub allowed: bool,
+  pub root: Option<PathBuf>,
+  pub root_priority: i32,
+  pub hidden: bool,
+  pub ignored: bool,
+  pub sensitive: bool,
+  pub reasons: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExplainResult {
-    pub path: PathBuf,
-    pub allowed: bool,
-    pub root: Option<PathBuf>,
-    pub hidden: bool,
-    pub ignored: bool,
-    pub sensitive: bool,
-    pub reasons: Vec<String>,
-    pub score: Option<i32>,
-    pub matches: Vec<MatchKind>,
+  pub path: PathBuf,
+  pub allowed: bool,
+  pub root: Option<PathBuf>,
+  pub hidden: bool,
+  pub ignored: bool,
+  pub sensitive: bool,
+  pub reasons: Vec<String>,
+  pub score: Option<i32>,
+  pub matches: Vec<MatchKind>,
 }
 
 pub fn expand_tilde(path: PathBuf) -> PathBuf {
-    let Some(text) = path.to_str() else {
-        return path;
-    };
-    if text == "~" {
-        if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home);
-        }
+  let Some(text) = path.to_str() else {
+    return path;
+  };
+  if text == "~" {
+    if let Some(home) = std::env::var_os("HOME") {
+      return PathBuf::from(home);
     }
-    if let Some(rest) = text.strip_prefix("~/") {
-        if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home).join(rest);
-        }
+  }
+  if let Some(rest) = text.strip_prefix("~/") {
+    if let Some(home) = std::env::var_os("HOME") {
+      return PathBuf::from(home).join(rest);
     }
-    path
+  }
+  path
 }
 
 pub fn normalize_root_path(path: PathBuf) -> PathBuf {
-    let expanded = expand_tilde(path);
-    let absolute = if expanded.is_absolute() {
-        expanded
-    } else if let Ok(current_dir) = std::env::current_dir() {
-        current_dir.join(expanded)
-    } else {
-        expanded
-    };
-    std::fs::canonicalize(&absolute).unwrap_or(absolute)
+  let expanded = expand_tilde(path);
+  let absolute = if expanded.is_absolute() {
+    expanded
+  } else if let Ok(current_dir) = std::env::current_dir() {
+    current_dir.join(expanded)
+  } else {
+    expanded
+  };
+  std::fs::canonicalize(&absolute).unwrap_or(absolute)
 }
 
 pub(crate) fn lowercase_extension(path: &std::path::Path) -> Option<String> {
-    path.extension()
-        .and_then(|value| value.to_str())
-        .map(|value| value.to_ascii_lowercase())
+  path
+    .extension()
+    .and_then(|value| value.to_str())
+    .map(|value| value.to_ascii_lowercase())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
 
-    #[test]
-    fn search_root_normalizes_relative_paths_to_absolute_paths() {
-        let root = SearchRoot::new("relative-project");
+  #[test]
+  fn search_root_normalizes_relative_paths_to_absolute_paths() {
+    let root = SearchRoot::new("relative-project");
 
-        assert!(root.path.is_absolute());
-        assert!(root.path.ends_with("relative-project"));
-    }
+    assert!(root.path.is_absolute());
+    assert!(root.path.ends_with("relative-project"));
+  }
 }

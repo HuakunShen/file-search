@@ -10,12 +10,12 @@ pub mod policy;
 pub mod ranking;
 
 pub use backend::{
-    BackendError, CandidateProvider, IndexRebuildStats, IndexRefreshStats, IndexRepairStats,
-    IndexRootStatus, MetadataIndex,
+  BackendError, CandidateProvider, IndexRebuildStats, IndexRefreshStats, IndexRepairStats,
+  IndexRootStatus, MetadataIndex,
 };
 pub use engine::SearchEngineCore;
 pub use model::{
-    EntryKind, ExplainResult, MatchKind, PolicyDecision, SearchCandidate, SearchConfig,
-    SearchQuery, SearchResult, SearchRoot,
+  EntryKind, ExplainResult, MatchKind, PolicyDecision, SearchCandidate, SearchConfig, SearchQuery,
+  SearchResult, SearchRoot,
 };
 pub use policy::PathPolicy;
