@@ -7,9 +7,10 @@ use std::io;
 use std::path::PathBuf;
 use std::process::Command;
 
+#[cfg(target_os = "macos")]
+use kfs_core::EntryKind;
 use kfs_core::{
-  ranking::tokenize, BackendError, CandidateProvider, EntryKind, SearchCandidate, SearchConfig,
-  SearchQuery,
+  ranking::tokenize, BackendError, CandidateProvider, SearchCandidate, SearchConfig, SearchQuery,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,11 +63,13 @@ impl<R: CommandRunner> SpotlightProvider<R> {
   ) -> io::Result<Vec<SearchCandidate>> {
     #[cfg(not(target_os = "macos"))]
     {
-      let _ = (config, query);
-      return Err(io::Error::new(
+      // Reading the runner here keeps the field used on platforms where the
+      // mdfind branch is compiled out.
+      let _ = (config, query, &self.runner);
+      Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Spotlight provider is only available on macOS",
-      ));
+      ))
     }
 
     #[cfg(target_os = "macos")]
@@ -242,11 +245,12 @@ mod tests {
     let config = SearchConfig {
       roots: vec![SearchRoot::new("/tmp/anything")],
     };
+    let query = SearchQuery::new("package");
 
-    let error = provider
-      .search_candidates(&config, &SearchQuery::new("package"))
-      .unwrap_err();
+    let io_error = provider.search(&config, &query).unwrap_err();
+    assert_eq!(io_error.kind(), io::ErrorKind::Unsupported);
 
-    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    let backend_error = provider.search_candidates(&config, &query).unwrap_err();
+    assert!(backend_error.message.contains("only available on macOS"));
   }
 }
