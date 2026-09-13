@@ -11,7 +11,7 @@ use kfs_core::{
   IndexRebuildStats, IndexRefreshStats, IndexRepairStats, IndexRootStatus, MatchKind, SearchConfig,
   SearchQuery, SearchResult, SearchRoot,
 };
-use kfs_index_sqlite::{IndexedSearchOutcome, SqliteIndex};
+use kfs_index::{IndexedSearchOutcome, KfsIndex};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
@@ -245,8 +245,8 @@ impl Task for SearchTask {
   }
 }
 
-fn open_index(db_path: &str) -> Result<SqliteIndex> {
-  SqliteIndex::open(db_path).map_err(napi_error)
+fn open_index(db_path: &str) -> Result<KfsIndex> {
+  KfsIndex::open(db_path).map_err(napi_error)
 }
 
 fn config_from_roots(roots: &[SearchRootInput]) -> SearchConfig {

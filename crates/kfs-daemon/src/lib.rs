@@ -12,7 +12,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use kfs_core::{BackendError, MetadataIndex, SearchConfig, SearchQuery, SearchRoot};
-use kfs_index_sqlite::{match_names, SqliteIndex};
+use kfs_index::{match_names, KfsIndex};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -76,7 +76,7 @@ pub fn serve(config: DaemonConfig) -> Result<DaemonRunStats, BackendError> {
     .to_string();
   let started = Instant::now();
   let mut index =
-    SqliteIndex::open(&config.db_path).map_err(|err| BackendError::new(err.to_string()))?;
+    KfsIndex::open(&config.db_path).map_err(|err| BackendError::new(err.to_string()))?;
   let mut requests = 0;
 
   loop {
@@ -113,7 +113,7 @@ pub fn serve(config: DaemonConfig) -> Result<DaemonRunStats, BackendError> {
 }
 
 fn handle_connection(
-  index: &mut SqliteIndex,
+  index: &mut KfsIndex,
   mut stream: TcpStream,
   allowed_roots: &[SearchRoot],
 ) -> Result<(), BackendError> {
@@ -126,7 +126,7 @@ fn handle_connection(
 }
 
 fn handle_request(
-  index: &mut SqliteIndex,
+  index: &mut KfsIndex,
   request: HttpRequest,
   allowed_roots: &[SearchRoot],
 ) -> HttpResponse {
@@ -432,7 +432,7 @@ mod tests {
 
   #[test]
   fn health_endpoint_returns_ok_json() {
-    let mut index = SqliteIndex::open_memory().unwrap();
+    let mut index = KfsIndex::open_memory().unwrap();
 
     let response = handle_request(
       &mut index,
@@ -453,7 +453,7 @@ mod tests {
     let root = temp_dir("search");
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("daemon-target.md"), "daemon\n").unwrap();
-    let mut index = SqliteIndex::open_memory().unwrap();
+    let mut index = KfsIndex::open_memory().unwrap();
     let allowed_roots = vec![SearchRoot::new(&root)];
     let rebuild = handle_request(
       &mut index,

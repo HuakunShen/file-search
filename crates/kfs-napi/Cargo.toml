@@ -12,7 +12,7 @@ path = "src/lib.rs"
 
 [dependencies]
 kfs-core = { path = "../kfs-core" }
-kfs-index-sqlite = { path = "../kfs-index-sqlite" }
+kfs-index = { path = "../kfs-index" }
 napi = "3"
 napi-derive = "3"
 

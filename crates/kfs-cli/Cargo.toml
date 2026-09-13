@@ -9,7 +9,7 @@ repository.workspace = true
 [dependencies]
 kfs-core = { path = "../kfs-core" }
 kfs-daemon = { path = "../kfs-daemon" }
-kfs-index-sqlite = { path = "../kfs-index-sqlite" }
+kfs-index = { path = "../kfs-index" }
 kfs-provider-spotlight = { path = "../kfs-provider-spotlight" }
 kfs-watcher = { path = "../kfs-watcher" }
 
