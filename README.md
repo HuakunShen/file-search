@@ -1,3 +1,13 @@
+# file-search (KFS) — merged into space-lens
+
+This workspace has moved to [HuakunShen/space-lens](https://github.com/HuakunShen/space-lens)
+as `packages/kfs-*` (plan 0063, tag `kfs-v0.1.2`). Kunkun and Xross consume it
+at `vendors/space-lens`. This repository remains as the provenance anchor for
+the extracted history: the nine capability commits (`22a27b45d..401423928`)
+and tags `v0.1.0` / `v0.1.1`.
+
+---
+
 # file-search (KFS)
 
 Rust-only local file search workspace. This repository is intentionally
