@@ -175,7 +175,24 @@ pub fn normalize_root_path(path: PathBuf) -> PathBuf {
   } else {
     expanded
   };
-  std::fs::canonicalize(&absolute).unwrap_or(absolute)
+  let canonical = std::fs::canonicalize(&absolute).unwrap_or(absolute);
+  strip_windows_verbatim_prefix(canonical)
+}
+
+/// Windows `canonicalize` returns extended-length verbatim paths
+/// (`\\?\C:\...`); the prefix is rustc-internal noise that leaks into
+/// statuses, results and every string comparison against a caller path.
+fn strip_windows_verbatim_prefix(path: PathBuf) -> PathBuf {
+  let Some(text) = path.to_str() else {
+    return path;
+  };
+  if let Some(unc) = text.strip_prefix(r"\\?\UNC\") {
+    PathBuf::from(format!(r"\\{unc}"))
+  } else if let Some(drive) = text.strip_prefix(r"\\?\") {
+    PathBuf::from(drive)
+  } else {
+    path
+  }
 }
 
 pub(crate) fn lowercase_extension(path: &std::path::Path) -> Option<String> {
