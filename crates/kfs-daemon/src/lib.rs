@@ -455,12 +455,14 @@ mod tests {
     fs::write(root.join("daemon-target.md"), "daemon\n").unwrap();
     let mut index = SqliteIndex::open_memory().unwrap();
     let allowed_roots = vec![SearchRoot::new(&root)];
+    // Paths are serialized, not format!-ed: a Windows path's backslashes are
+    // JSON escapes, and a hand-built literal is invalid JSON off POSIX.
     let rebuild = handle_request(
       &mut index,
       HttpRequest {
         method: "POST".to_string(),
         path: "/index/rebuild".to_string(),
-        body: format!(r#"{{"roots":["{}"]}}"#, root.to_string_lossy()).into_bytes(),
+        body: serde_json::to_vec(&json!({ "roots": [root.to_string_lossy()] })).unwrap(),
       },
       &allowed_roots,
     );
@@ -469,11 +471,12 @@ mod tests {
       HttpRequest {
         method: "POST".to_string(),
         path: "/search".to_string(),
-        body: format!(
-          r#"{{"query":"daemon target","roots":["{}"],"limit":5}}"#,
-          root.to_string_lossy()
-        )
-        .into_bytes(),
+        body: serde_json::to_vec(&json!({
+          "query": "daemon target",
+          "roots": [root.to_string_lossy()],
+          "limit": 5
+        }))
+        .unwrap(),
       },
       &allowed_roots,
     );
