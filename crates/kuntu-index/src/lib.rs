@@ -607,7 +607,7 @@ impl KuntuIndex {
       let mut candidates: Vec<CandidateRow> = Vec::new();
       for chunk in id_list.chunks(400) {
         let sql = format!(
-          "SELECT entries_main.path, entries_main.kind, roots_pri.priority
+          "SELECT entries_main.path, entries_main.kind, roots_pri.priority, entries_main.size, entries_main.mtime
              FROM entries AS entries_main
              JOIN roots AS roots_pri ON roots_pri.id = entries_main.root_id
              WHERE entries_main.id IN ({}) AND {predicate_clause}",
@@ -627,10 +627,13 @@ impl KuntuIndex {
         }
         let mut rows = self.conn.query(&sql, params_from_iter(values)).await?;
         while let Some(row) = rows.next().await? {
+          let mtime: Option<i64> = row.get(4)?;
           candidates.push(CandidateRow {
             path: PathBuf::from(row.get::<String>(0)?),
             kind: int_to_kind(row.get::<i64>(1)?),
             root_priority: row.get::<i32>(2)?,
+            byte_size: u64::try_from(row.get::<i64>(3).unwrap_or(-1)).ok(),
+            modified_unix_seconds: u64::try_from(mtime.unwrap_or(-1)).ok(),
           });
         }
       }
@@ -651,6 +654,9 @@ impl KuntuIndex {
             score,
             provider: candidate.provider,
             matches,
+            kind: row.kind,
+            byte_size: row.byte_size,
+            modified_unix_seconds: row.modified_unix_seconds,
           });
         }
       }
@@ -709,6 +715,8 @@ struct CandidateRow {
   path: PathBuf,
   kind: EntryKind,
   root_priority: i32,
+  byte_size: Option<u64>,
+  modified_unix_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone)]

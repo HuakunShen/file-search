@@ -179,6 +179,9 @@ mod tests {
       score: 42,
       provider: "test".to_string(),
       matches: vec![MatchKind::BasenamePrefix],
+      kind: kuntu_core::EntryKind::File,
+      byte_size: None,
+      modified_unix_seconds: None,
     }]);
 
     assert_eq!(

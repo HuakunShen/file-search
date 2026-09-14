@@ -50,6 +50,9 @@ impl SearchEngineCore {
         score,
         provider: candidate.provider,
         matches,
+        kind: candidate.kind,
+        byte_size: None,
+        modified_unix_seconds: None,
       };
 
       by_path
