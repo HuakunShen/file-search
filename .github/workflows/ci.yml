@@ -36,6 +36,19 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
           pnpm test
+      - name: The shipped addon carries no search engine but its own
+        run: |
+          # kfs-index keeps its own terms inverted index; turso's "fts" feature
+          # pulls tantivy (a second engine) and "mimalloc" installs a
+          # #[global_allocator] into the host image. Neither may return via a
+          # dependency bump. The check runs in the kfs-napi dependency graph —
+          # the shipped artifact's graph — not the workspace's test graph.
+          leaked=$(cargo tree -p kfs-napi -e normal | grep -cE "tantivy|mimalloc" || true)
+          if [ "$leaked" != "0" ]; then
+            cargo tree -p kfs-napi -e normal | grep -E "tantivy|mimalloc"
+            echo "a trimmed engine feature re-entered the addon's tree"
+            exit 1
+          fi
       - name: Spotlight refuses unsupported platforms instead of falling back
         if: runner.os != 'macOS'
         run: cargo test -p kfs-provider-spotlight --locked search_candidates_returns_unsupported_off_macos

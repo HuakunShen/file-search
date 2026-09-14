@@ -15,7 +15,7 @@ use kfs_core::{
   CandidateProvider, MetadataIndex, SearchConfig, SearchEngineCore, SearchQuery, SearchResult,
 };
 use kfs_daemon::{serve, DaemonConfig};
-use kfs_index_sqlite::SqliteIndex;
+use kfs_index::KfsIndex;
 use kfs_provider_spotlight::SpotlightProvider;
 use kfs_watcher::{run_polling_watch, WatchOptions};
 use output::{
@@ -146,7 +146,7 @@ fn search_sqlite(
   query: &SearchQuery,
   db_path: &Path,
 ) -> Result<SearchRun, String> {
-  let index = SqliteIndex::open(db_path).map_err(|err| err.to_string())?;
+  let index = KfsIndex::open(db_path).map_err(|err| err.to_string())?;
   let outcome = index
     .search_with_metrics(config, query)
     .map_err(|err| err.to_string())?;
@@ -162,7 +162,7 @@ fn run_index_command(
   command: IndexCommand,
 ) -> Result<String, String> {
   let path = db_path.ok_or_else(|| "--db is required for index commands".to_string())?;
-  let mut index = SqliteIndex::open(path).map_err(|err| err.to_string())?;
+  let mut index = KfsIndex::open(path).map_err(|err| err.to_string())?;
   match command {
     IndexCommand::Rebuild => {
       let stats = index.rebuild_index(config).map_err(|err| err.to_string())?;
@@ -189,7 +189,7 @@ fn run_watch_command(
   duration_ms: u64,
 ) -> Result<String, String> {
   let path = db_path.ok_or_else(|| "--db is required for watch".to_string())?;
-  let mut index = SqliteIndex::open(path).map_err(|err| err.to_string())?;
+  let mut index = KfsIndex::open(path).map_err(|err| err.to_string())?;
   let options = WatchOptions::new(config.clone())
     .with_duration(Duration::from_millis(duration_ms))
     .with_poll_interval(Duration::from_millis(100));

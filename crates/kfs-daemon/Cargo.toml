@@ -8,7 +8,7 @@ repository.workspace = true
 
 [dependencies]
 kfs-core = { path = "../kfs-core" }
-kfs-index-sqlite = { path = "../kfs-index-sqlite" }
+kfs-index = { path = "../kfs-index" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
