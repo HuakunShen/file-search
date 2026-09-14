@@ -163,8 +163,17 @@ mod tests {
   fn build_mdfind_args_scopes_each_enabled_root_and_uses_filename_query() {
     let config = SearchConfig {
       roots: vec![
-        SearchRoot::new("/Users/alice/Dev").with_priority(10),
-        SearchRoot::new("/Users/alice/Downloads").disabled(),
+        // Platform-native fixture roots (see kfs-core policy.rs#fixture_root):
+        // a POSIX literal is not absolute on Windows, and the assertion below
+        // must hold against the root as callers actually pass it.
+        SearchRoot::new(
+          std::env::temp_dir().join(format!("kfs-spotlight-enabled-{}", std::process::id())),
+        )
+        .with_priority(10),
+        SearchRoot::new(
+          std::env::temp_dir().join(format!("kfs-spotlight-disabled-{}", std::process::id())),
+        )
+        .disabled(),
       ],
     };
     let query = SearchQuery::new("package json");
@@ -172,13 +181,13 @@ mod tests {
     let args = build_mdfind_args(&config, &query);
 
     assert_eq!(
-            args,
-            vec![
-                "-onlyin",
-                "/Users/alice/Dev",
-                "(kMDItemFSName == \"*package*\"cdw || kMDItemPath == \"*package*\"cdw) && (kMDItemFSName == \"*json*\"cdw || kMDItemPath == \"*json*\"cdw)",
-            ]
-        );
+      args,
+      vec![
+        "-onlyin".to_string(),
+        config.roots[0].path.to_string_lossy().into_owned(),
+        "(kMDItemFSName == \"*package*\"cdw || kMDItemPath == \"*package*\"cdw) && (kMDItemFSName == \"*json*\"cdw || kMDItemPath == \"*json*\"cdw)".to_string(),
+      ]
+    );
   }
 
   #[test]
