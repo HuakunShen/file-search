@@ -122,17 +122,27 @@ fn extension_allowed(path: &Path, query: &SearchQuery) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use std::path::PathBuf;
+  use std::path::{Component, PathBuf};
 
   use crate::{EntryKind, MatchKind, SearchRoot};
 
   use super::*;
 
-  /// Fixture roots live under the platform's own temporary directory; a
-  /// POSIX literal is not absolute on Windows and would be grafted onto the
-  /// current drive by root normalization. See policy.rs#fixture_root.
+  /// Fixture roots start at the platform's volume root and use only
+  /// controlled components: a real temporary directory can carry ambient
+  /// names (`.ssh`, `credentials`, `target`, ...) that `is_sensitive` and
+  /// `is_ignored` would legitimately classify, making the tests
+  /// environment-dependent. The paths are never created; evaluation is
+  /// pure logic.
   fn fixture_root(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("kfs-core-{name}-{}", std::process::id()))
+    let mut base = PathBuf::new();
+    for component in std::env::temp_dir().components() {
+      match component {
+        Component::Prefix(_) | Component::RootDir => base.push(component.as_os_str()),
+        _ => break,
+      }
+    }
+    base.join(format!("kfs-core-{name}-{}", std::process::id()))
   }
 
   fn engine() -> (SearchEngineCore, PathBuf) {
