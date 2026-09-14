@@ -56,6 +56,7 @@ pub enum IndexError {
   SchemaTooNew { found: i64, supported: i64 },
   RecreateRequired,
   RecreateFailed(Box<IndexError>),
+  UnrecognizedDatabase { path: PathBuf },
 }
 
 impl std::fmt::Display for IndexError {
@@ -70,6 +71,11 @@ impl std::fmt::Display for IndexError {
       IndexError::RecreateRequired => write!(
         formatter,
         "index database predates the turso engine and must be recreated"
+      ),
+      IndexError::UnrecognizedDatabase { path } => write!(
+        formatter,
+        "{} has user tables but is not a file-search index; move it aside or choose another --db, it was not modified",
+        path.display()
       ),
       IndexError::RecreateFailed(error) => write!(
         formatter,
@@ -151,6 +157,7 @@ impl KfsIndex {
       let database = turso::Builder::new_local(":memory:").build().await?;
       let conn = database.connect()?;
       let index = KfsIndex { conn };
+      index.enable_foreign_key_cascades().await?;
       index.create_schema().await?;
       index.set_schema_version(SCHEMA_VERSION).await?;
       Ok(index)
@@ -180,11 +187,19 @@ impl KfsIndex {
   }
 
   async fn open_once(path: &Path) -> Result<Self> {
-    let database = turso::Builder::new_local(path.to_string_lossy().as_ref())
-      .build()
-      .await?;
+    // turso's builder takes a string; rather than alias a database to a
+    // lossy-converted path (distinct byte paths collapsing onto one), refuse
+    // what cannot be represented exactly.
+    let Some(path_text) = path.to_str() else {
+      return Err(IndexError::Io(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        format!("index database path is not valid UTF-8: {}", path.display()),
+      )));
+    };
+    let database = turso::Builder::new_local(path_text).build().await?;
     let conn = database.connect()?;
     let index = KfsIndex { conn };
+    index.enable_foreign_key_cascades().await?;
 
     let version = index.schema_version().await?;
     if version > SCHEMA_VERSION {
@@ -193,10 +208,28 @@ impl KfsIndex {
         supported: SCHEMA_VERSION,
       });
     }
-    // Version 0 that already carries the schema is a rusqlite-era database:
-    // recreate (a fresh turso file also reports 0 but has no tables yet).
-    if version == 0 && table_exists(&index.conn, "roots").await? {
-      return Err(IndexError::RecreateRequired);
+    if version == 0 {
+      // A fresh file reports version 0 with no tables. Version 0 with the
+      // complete KFS schema is a pre-versioning rusqlite database: recreate.
+      // Anything else with user tables is not ours and must never be touched
+      // automatically — `roots` alone proves nothing.
+      let has_tables = any_table_exists(&index.conn).await?;
+      if has_tables {
+        let kfs_tables = ["roots", "entries", "terms", "root_state"];
+        let mut complete = true;
+        for table in kfs_tables {
+          if !table_exists(&index.conn, table).await? {
+            complete = false;
+            break;
+          }
+        }
+        if complete {
+          return Err(IndexError::RecreateRequired);
+        }
+        return Err(IndexError::UnrecognizedDatabase {
+          path: path.to_path_buf(),
+        });
+      }
     }
 
     index.create_schema().await?;
@@ -204,6 +237,17 @@ impl KfsIndex {
       index.set_schema_version(SCHEMA_VERSION).await?;
     }
     Ok(index)
+  }
+
+  /// The schema leans on `terms.entry_id ... ON DELETE CASCADE`; the engine
+  /// only honors that while the per-connection pragma is on. Without it a
+  /// rebuild's bulk entry delete leaves orphan terms behind, and row id reuse
+  /// then aliases old terms onto new files.
+  async fn enable_foreign_key_cascades(&self) -> Result<()> {
+    self.conn
+      .execute("PRAGMA foreign_keys = ON", ())
+      .await?;
+    Ok(())
   }
 
   async fn create_schema(&self) -> Result<()> {
@@ -983,6 +1027,16 @@ async fn table_exists(conn: &turso::Connection, table: &str) -> Result<bool> {
   Ok(rows.next().await?.is_some())
 }
 
+async fn any_table_exists(conn: &turso::Connection) -> Result<bool> {
+  let mut rows = conn
+    .query(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+      (),
+    )
+    .await?;
+  Ok(rows.next().await?.is_some())
+}
+
 fn remove_database_files(path: &Path) {
   let raw = path.to_string_lossy().to_string();
   for candidate in [raw.clone(), format!("{raw}-wal"), format!("{raw}-shm")] {
@@ -1394,5 +1448,111 @@ mod tests {
     let second = KfsIndex::open(&path).unwrap_err();
     assert!(matches!(second, IndexError::SchemaTooNew { .. }));
     remove_database_files(&path);
+  }
+
+  #[test]
+  fn deleting_entries_cascades_to_terms() {
+    // The rebuild's bulk `DELETE FROM entries` relies on the terms foreign
+    // key; without the pragma on, row id reuse aliases stale terms onto new
+    // files and searches return unrelated results.
+    let root = temp_dir("cascade");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("cascade-target.md"), "cascade\n").unwrap();
+
+    let mut index = KfsIndex::open_memory().unwrap();
+    let config = SearchConfig {
+      roots: vec![SearchRoot::new(&root)],
+    };
+    index.rebuild(&config).unwrap();
+
+    let terms_before: i64 = block_on(async {
+      let mut rows = index
+        .conn
+        .query("SELECT COUNT(*) FROM terms", ())
+        .await
+        .unwrap();
+      rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap()
+    });
+    assert!(terms_before > 0);
+
+    block_on(async {
+      index.conn.execute("DELETE FROM entries", ()).await.unwrap();
+    });
+
+    let terms_after: i64 = block_on(async {
+      let mut rows = index
+        .conn
+        .query("SELECT COUNT(*) FROM terms", ())
+        .await
+        .unwrap();
+      rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap()
+    });
+    assert_eq!(terms_after, 0);
+    remove_dir_all_if_exists(&root).unwrap();
+  }
+
+  #[test]
+  fn foreign_v0_database_is_refused_and_left_untouched() {
+    let path = temp_dir("foreign-db");
+    {
+      let index = KfsIndex::open(&path).unwrap();
+      block_on(async {
+        index
+          .conn
+          .execute(
+            "CREATE TABLE user_data (id INTEGER PRIMARY KEY, note TEXT)",
+            (),
+          )
+          .await
+          .unwrap();
+        index
+          .conn
+          .execute("INSERT INTO user_data VALUES (1, 'precious')", ())
+          .await
+          .unwrap();
+        index.conn.execute("DROP TABLE roots", ()).await.unwrap();
+        index.conn.execute("DROP TABLE entries", ()).await.unwrap();
+        index.conn.execute("DROP TABLE terms", ()).await.unwrap();
+        index
+          .conn
+          .execute("DROP TABLE root_state", ())
+          .await
+          .unwrap();
+      });
+      block_on(index.set_schema_version(0)).unwrap();
+    }
+    let error = KfsIndex::open(&path).unwrap_err();
+    match error {
+      IndexError::UnrecognizedDatabase { path: reported } => {
+        assert_eq!(reported, path);
+      }
+      other => panic!("expected unrecognized-database refusal, got {other}"),
+    }
+    // The refusal is non-destructive: the stranger's rows survive.
+    let readable: i64 = block_on(async {
+      let database =
+        turso::Builder::new_local(path.to_str().unwrap()).build().await.unwrap();
+      let conn = database.connect().unwrap();
+      let mut rows = conn
+        .query("SELECT COUNT(*) FROM user_data", ())
+        .await
+        .unwrap();
+      rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap()
+    });
+    assert_eq!(readable, 1);
+    remove_database_files(&path);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn open_refuses_non_utf8_database_paths_instead_of_aliasing() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let path = std::env::temp_dir()
+      .join(format!("kfs-index-nonutf8-{}", std::process::id()))
+      .with_extension(std::ffi::OsStr::from_bytes(b"not-\xff-utf8"));
+    let error = KfsIndex::open(&path).unwrap_err();
+    assert!(matches!(error, IndexError::Io(_)));
+    assert!(!path.exists(), "a database must not be created at a lossy alias");
   }
 }

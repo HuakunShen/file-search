@@ -25,7 +25,7 @@ to a standalone repository in plan 0064. See `MIGRATION.md`. See
 
 - `kfs-core`: shared search types, path policy, explanation, and ranking.
 - `kfs-crawler`: explicit-root filesystem crawler that applies `kfs-core` policy.
-- `kfs-index-sqlite`: persistent metadata index, incremental refresh, repair, and search over crawled entries. The schema carries a monotonic version (`PRAGMA user_version`, `kfs_index_sqlite::SCHEMA_VERSION`); databases written by a newer release are refused with a distinct error so callers can recreate and rebuild instead of blocking.
+- `kfs-index`: persistent metadata index on the turso engine, incremental refresh, repair, and search over crawled entries. The schema carries a monotonic version (`PRAGMA user_version`, `kfs_index::SCHEMA_VERSION`, currently 2); databases from a newer release are refused with a distinct error, pre-versioning databases with the complete schema are recreated from a rescan, and a file that carries unrelated user tables is refused untouched.
 - `kfs-daemon`: framework-free HTTP JSON service adapter.
 - `kfs-watcher`: platform-neutral watcher event model with bounded polling maintenance.
 - `kfs-provider-spotlight`: macOS Spotlight provider backed by `mdfind`; other platforms return `Unsupported` rather than falling back.
