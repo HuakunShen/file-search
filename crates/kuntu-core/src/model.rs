@@ -130,6 +130,13 @@ pub struct SearchResult {
   pub score: i32,
   pub provider: String,
   pub matches: Vec<MatchKind>,
+  /// Kind as the provider observed it. The in-memory engine knows it from the
+  /// walk; index rows carry their crawled kind.
+  pub kind: EntryKind,
+  /// Crawled size in bytes, when the provider had it.
+  pub byte_size: Option<u64>,
+  /// Crawled modification time, when the provider had it.
+  pub modified_unix_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
