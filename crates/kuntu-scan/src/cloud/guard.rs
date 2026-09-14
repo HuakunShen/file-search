@@ -42,11 +42,15 @@ pub fn ensure_within_scope(root: &Path, path: &Path) -> Result<()> {
   }
 }
 
+/// Production caller is the macOS iCloud backend (platform.rs); kept
+/// cross-platform for the test suite and future non-Apple backends.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn fingerprint_for_path(path: &Path) -> Result<Fingerprint> {
   let metadata = fs::symlink_metadata(path).map_err(|error| CloudError::io(path, error))?;
   Ok(fingerprint_from_metadata(&metadata))
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub(crate) fn allocated_bytes_for_path(path: &Path) -> Result<super::model::Bytes> {
   let metadata = fs::symlink_metadata(path).map_err(|error| CloudError::io(path, error))?;
   Ok(super::model::Bytes(allocated_size(&metadata)))
