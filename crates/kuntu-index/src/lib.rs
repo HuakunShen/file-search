@@ -1431,7 +1431,7 @@ mod tests {
     terms: &[&str],
   ) {
     let (hidden, ignored, sensitive) = policy_flags;
-    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let root = kuntu_core::normalize_root_path(root.to_path_buf());
     let full = root.join(relative);
     let name = full.file_name().unwrap().to_string_lossy().to_string();
     let name_lower = name.to_ascii_lowercase();
@@ -1550,8 +1550,8 @@ mod tests {
     let root_b = temp_dir("scope-b");
     fs::create_dir_all(root_a.join("docs")).unwrap();
     fs::create_dir_all(&root_b).unwrap();
-    let root_a = root_a.canonicalize().unwrap();
-    let root_b = root_b.canonicalize().unwrap();
+    let root_a = kuntu_core::normalize_root_path(root_a);
+    let root_b = kuntu_core::normalize_root_path(root_b);
     fs::write(root_a.join("docs/plan-report.md"), "a\n").unwrap();
     // Root B holds the stronger match: exact basename "plan".
     fs::write(root_b.join("plan.md"), "b\n").unwrap();
@@ -1646,7 +1646,7 @@ mod tests {
   fn run_bounded_fixture(name: &str, rows: i64, miss_ceiling_secs: u64, broad_ceiling_secs: u64) {
     let root = temp_dir(name);
     fs::create_dir_all(&root).unwrap();
-    let root = root.canonicalize().unwrap();
+    let root = kuntu_core::normalize_root_path(root);
     // File-backed on purpose: an in-memory turso store costs kilobytes per
     // row, and a fixture at this scale is exactly where that shows. The
     // database lives outside the crawled root so the rebuild does not index

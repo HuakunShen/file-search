@@ -15,7 +15,7 @@ pub use backend::{
 };
 pub use engine::SearchEngineCore;
 pub use model::{
-  EntryKind, ExplainResult, MatchKind, PolicyDecision, SearchCandidate, SearchConfig, SearchQuery,
-  SearchResult, SearchRoot,
+  normalize_root_path, EntryKind, ExplainResult, MatchKind, PolicyDecision, SearchCandidate,
+  SearchConfig, SearchQuery, SearchResult, SearchRoot,
 };
 pub use policy::PathPolicy;
