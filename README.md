@@ -26,6 +26,22 @@ scan/clean/iCloud-eviction half moved here from
 | [Xross](https://github.com/HuakunShen/xross) | `vendors/file-search` (submodule) | `kuntu-core`/`kuntu-crawler`/`kuntu-index`/`kuntu-watcher` (wiring: plan 0062) |
 | [space-lens](https://github.com/HuakunShen/space-lens) | `vendors/kuntu` (submodule) | `kuntu-scan` (ffi → SwiftUI, napi, cli) |
 
+## Revisions
+
+| Tag | What changed for consumers |
+|---|---|
+| `v0.4.0` | Search hardening (Xross plan 0062 Task 1): enabled-root, requested-kind (`SearchQuery::include_files` / `include_directories`), extension and hidden/ignored/sensitive policy predicates now apply in SQL **before** ranking and any window; a hard `kuntu_index::MAX_KFS_CANDIDATE_ROWS` (50,000) work bound reports `CandidateCoverage::Truncated` instead of pretending completeness; a query whose tokens match no indexed term returns an **empty complete result** — the full-root fuzzy/substring fallback is gone (ordered fuzzy matching is no longer promised); results beyond the requested limit surface as `truncated`. The JS/NAPI surface (`@kunkunsh/file-search-native`, `FileSearchIndex`) is unchanged; `kuntu-daemon` search responses gain additive `truncated` / `coverage` fields. Schema stays at version 2.
+
+  Measured ceilings (release, M-series Mac, `just benchmark`): a broad
+  single-token query saturating the 50,000-candidate bound completes in
+  ~2.3 s at 60k rows; the fixture builds 1M rows in ~45 s. **Known engine
+  gap:** turso 0.7.2's planner does not seek the terms primary key for range
+  predicates — it full-scans the terms table, so a miss costs ~7.5 s at 1M
+  rows (pre-existing: v0.2.x ran the same range shape). A seek-capable range
+  plan is the top follow-up before embedding at million-entry scale. |
+| `v0.3.0` | Kuntu: file-search renamed, space-lens's scan/clean/cloud engine moved in as `kuntu-scan`; `kfs-*` crates swept to `kuntu-*`. |
+| `v0.2.0` – `v0.2.2` | Index engine moved to turso (schema version 2), trimmed default features, Windows test debt fixed, review fixes. |
+
 ## Crates
 
 Search:

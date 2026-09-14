@@ -58,6 +58,12 @@ pub struct SearchQuery {
   pub limit: usize,
   pub include_hidden: bool,
   pub include_ignored: bool,
+  /// Xross search scopes results to files or directories before ranking.
+  /// Both default to true, which preserves the unfiltered behaviour; when
+  /// exactly one is set, entries of the other kind are excluded at the SQL
+  /// candidate stage and never crowd out the requested kind.
+  pub include_files: bool,
+  pub include_directories: bool,
   pub extensions: Vec<String>,
 }
 
@@ -68,6 +74,8 @@ impl SearchQuery {
       limit: 20,
       include_hidden: false,
       include_ignored: false,
+      include_files: true,
+      include_directories: true,
       extensions: Vec::new(),
     }
   }

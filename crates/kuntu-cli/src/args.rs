@@ -395,6 +395,8 @@ mod tests {
           limit: 7,
           include_hidden: false,
           include_ignored: false,
+          include_files: true,
+          include_directories: true,
           extensions: vec!["json".to_string()],
         },
         json: true,
@@ -446,6 +448,8 @@ mod tests {
           limit: 3,
           include_hidden: false,
           include_ignored: false,
+          include_files: true,
+          include_directories: true,
           extensions: Vec::new(),
         },
       }
