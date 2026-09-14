@@ -172,11 +172,21 @@ mod tests {
 
   /// Fixture roots live under the platform's own temporary directory so the
   /// drive/prefix shape matches what a real caller passes on every platform.
-  /// A POSIX literal like "/Users/alice/Dev" is *not* absolute on Windows —
-  /// root normalization grafts it onto the current drive — so a literal that
-  /// only ever matched on POSIX encoded the test, not the policy.
+  /// Fixture roots start at the platform's volume root and use only
+  /// controlled components: a real temporary directory can carry ambient
+  /// names (`.ssh`, `credentials`, `target`, ...) that `is_sensitive` and
+  /// `is_ignored` would legitimately classify, making the tests
+  /// environment-dependent. The paths are never created; evaluation is
+  /// pure logic.
   fn fixture_root(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("kfs-core-{name}-{}", std::process::id()))
+    let mut base = PathBuf::new();
+    for component in std::env::temp_dir().components() {
+      match component {
+        Component::Prefix(_) | Component::RootDir => base.push(component.as_os_str()),
+        _ => break,
+      }
+    }
+    base.join(format!("kfs-core-{name}-{}", std::process::id()))
   }
 
   fn policy() -> (PathPolicy, PathBuf) {
