@@ -1,0 +1,36 @@
+# Moved from HuakunShen/space-lens `packages/space-lens`; see src/lib.rs header.
+[package]
+name = "kuntu-scan"
+authors = ["HuakunShen"]
+description = "Fast disk usage scanner, cleanup candidate finder, and cloud eviction planning."
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/HuakunShen/kuntu"
+version = "0.1.0"
+
+[dependencies]
+ignore = "0.4"
+rayon = "1"
+serde = { version = "1", features = ["derive"] }
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.4"
+objc2-foundation = { version = "=0.3.2", default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSDictionary",
+  "NSError",
+  "NSFileManager",
+  "NSObjCRuntime",
+  "NSObject",
+  "NSString",
+  "NSURL",
+  "NSValue",
+] }
+
+[dev-dependencies]
+serde_json = "1"

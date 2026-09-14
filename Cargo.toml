@@ -1,26 +1,27 @@
-# Independent Rust workspace for the Kunkun file search core prototype.
+# Kuntu — a local-first file & storage engine. Embeddable; no transport, no product.
 [workspace]
 resolver = "2"
 members = [
-  "crates/kfs-core",
-  "crates/kfs-crawler",
-  "crates/kfs-index",
-  "crates/kfs-daemon",
-  "crates/kfs-watcher",
-  "crates/kfs-provider-spotlight",
-  "crates/kfs-napi",
-  "crates/kfs-cli",
+  "crates/kuntu-core",
+  "crates/kuntu-crawler",
+  "crates/kuntu-index",
+  "crates/kuntu-daemon",
+  "crates/kuntu-watcher",
+  "crates/kuntu-provider-spotlight",
+  "crates/kuntu-napi",
+  "crates/kuntu-cli",
+  "crates/kuntu-scan",
 ]
 
 [workspace.package]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/HuakunShen/file-search"
+repository = "https://github.com/HuakunShen/kuntu"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
-# The shipped artifact of this workspace is the kfs-napi cdylib; without
+# The shipped artifact of this workspace is the kuntu-napi cdylib; without
 # these the addon carries every engine symbol (22MB vs 15MB on
 # darwin-arm64). Only affects this workspace's own release builds —
 # consumers building these crates inside another workspace keep their
