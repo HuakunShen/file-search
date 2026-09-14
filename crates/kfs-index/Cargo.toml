@@ -11,7 +11,14 @@ kfs-core = { path = "../kfs-core" }
 kfs-crawler = { path = "../kfs-crawler" }
 # Engine note: turso is pinned to the same generation xross-store uses;
 # upgrades must move both sides together or xross builds compile two engines.
-turso = "=0.7.2"
+# Defaults are deliberately off: "fts" pulls tantivy (a full search engine)
+# into every consumer although this crate keeps its own terms index, and
+# "mimalloc" installs a #[global_allocator] — inside kfs-napi that would
+# re-allocator the host's Rust allocations. This is the only turso consumer
+# in the kunkun build, so the trimming takes effect; inside xrossd the
+# toasty-driver-turso edge re-unites the defaults and xrossd pays what it
+# already paid.
+turso = { version = "=0.7.2", default-features = false }
 futures = "0.3"
 
 [lib]
