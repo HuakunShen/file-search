@@ -244,9 +244,7 @@ impl KfsIndex {
   /// rebuild's bulk entry delete leaves orphan terms behind, and row id reuse
   /// then aliases old terms onto new files.
   async fn enable_foreign_key_cascades(&self) -> Result<()> {
-    self.conn
-      .execute("PRAGMA foreign_keys = ON", ())
-      .await?;
+    self.conn.execute("PRAGMA foreign_keys = ON", ()).await?;
     Ok(())
   }
 
@@ -1530,8 +1528,10 @@ mod tests {
     }
     // The refusal is non-destructive: the stranger's rows survive.
     let readable: i64 = block_on(async {
-      let database =
-        turso::Builder::new_local(path.to_str().unwrap()).build().await.unwrap();
+      let database = turso::Builder::new_local(path.to_str().unwrap())
+        .build()
+        .await
+        .unwrap();
       let conn = database.connect().unwrap();
       let mut rows = conn
         .query("SELECT COUNT(*) FROM user_data", ())
@@ -1553,6 +1553,9 @@ mod tests {
       .with_extension(std::ffi::OsStr::from_bytes(b"not-\xff-utf8"));
     let error = KfsIndex::open(&path).unwrap_err();
     assert!(matches!(error, IndexError::Io(_)));
-    assert!(!path.exists(), "a database must not be created at a lossy alias");
+    assert!(
+      !path.exists(),
+      "a database must not be created at a lossy alias"
+    );
   }
 }
