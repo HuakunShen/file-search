@@ -62,7 +62,7 @@ lookup aid; the gitlink records the commit.
 
 ## Schema changes
 
-`kfs-index` carries a monotonic `SCHEMA_VERSION` (`PRAGMA user_version`,
+`kuntu-index` carries a monotonic `SCHEMA_VERSION` (`PRAGMA user_version`,
 currently 2 on the turso engine). A schema change bumps it; version 1
 databases stamp forward in place (identical schema), version 0 databases
 carrying the complete schema are deleted and recreated from a rescan, a
