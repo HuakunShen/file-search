@@ -164,31 +164,46 @@ fn is_sensitive(path: &Path, components: &[String]) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use std::path::{Path, PathBuf};
+  use std::path::PathBuf;
 
   use crate::{SearchConfig, SearchQuery, SearchRoot};
 
   use super::*;
 
-  fn policy() -> PathPolicy {
-    PathPolicy::new(SearchConfig {
-      roots: vec![SearchRoot::new("/Users/alice/Dev").with_priority(10)],
-    })
+  /// Fixture roots live under the platform's own temporary directory so the
+  /// drive/prefix shape matches what a real caller passes on every platform.
+  /// A POSIX literal like "/Users/alice/Dev" is *not* absolute on Windows —
+  /// root normalization grafts it onto the current drive — so a literal that
+  /// only ever matched on POSIX encoded the test, not the policy.
+  fn fixture_root(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("kfs-core-{name}-{}", std::process::id()))
+  }
+
+  fn policy() -> (PathPolicy, PathBuf) {
+    let root = SearchRoot::new(fixture_root("policy")).with_priority(10);
+    let configured = root.path.clone();
+    (
+      PathPolicy::new(SearchConfig { roots: vec![root] }),
+      configured,
+    )
   }
 
   #[test]
   fn allows_paths_inside_enabled_roots() {
-    let decision = policy().evaluate(Path::new("/Users/alice/Dev/project/main.rs"), None);
+    let (policy, root) = policy();
+    let decision = policy.evaluate(&root.join("project").join("main.rs"), None);
 
     assert!(decision.allowed);
-    assert_eq!(decision.root, Some(PathBuf::from("/Users/alice/Dev")));
+    assert_eq!(decision.root, Some(root.clone()));
     assert_eq!(decision.root_priority, 10);
     assert_eq!(decision.reasons, vec!["inside-root"]);
   }
 
   #[test]
   fn denies_paths_outside_configured_roots() {
-    let decision = policy().evaluate(Path::new("/Users/alice/Documents/report.pdf"), None);
+    let (policy, _root) = policy();
+    let outside = fixture_root("elsewhere");
+    let decision = policy.evaluate(&outside.join("documents").join("report.pdf"), None);
 
     assert!(!decision.allowed);
     assert_eq!(decision.root, None);
@@ -199,8 +214,13 @@ mod tests {
 
   #[test]
   fn denies_generated_directories_by_default() {
-    let decision = policy().evaluate(
-      Path::new("/Users/alice/Dev/app/node_modules/pkg/index.js"),
+    let (policy, root) = policy();
+    let decision = policy.evaluate(
+      &root
+        .join("app")
+        .join("node_modules")
+        .join("pkg")
+        .join("index.js"),
       None,
     );
 
@@ -211,12 +231,13 @@ mod tests {
 
   #[test]
   fn denies_sensitive_paths_even_when_ignored_paths_are_allowed() {
+    let (policy, root) = policy();
     let query = SearchQuery {
       include_ignored: true,
       include_hidden: true,
       ..SearchQuery::new("id_rsa")
     };
-    let decision = policy().evaluate(Path::new("/Users/alice/Dev/.ssh/id_rsa"), Some(&query));
+    let decision = policy.evaluate(&root.join(".ssh").join("id_rsa"), Some(&query));
 
     assert!(!decision.allowed);
     assert!(decision.sensitive);
@@ -225,14 +246,12 @@ mod tests {
 
   #[test]
   fn query_can_include_hidden_non_sensitive_paths() {
+    let (policy, root) = policy();
     let query = SearchQuery {
       include_hidden: true,
       ..SearchQuery::new("config")
     };
-    let decision = policy().evaluate(
-      Path::new("/Users/alice/Dev/.config/readme.md"),
-      Some(&query),
-    );
+    let decision = policy.evaluate(&root.join(".config").join("readme.md"), Some(&query));
 
     assert!(decision.allowed);
     assert!(decision.hidden);
@@ -240,10 +259,17 @@ mod tests {
 
   #[test]
   fn root_can_include_ignored_paths() {
-    let policy = PathPolicy::new(SearchConfig {
-      roots: vec![SearchRoot::new("/Users/alice/Dev").include_ignored(true)],
-    });
-    let decision = policy.evaluate(Path::new("/Users/alice/Dev/project/target/debug/app"), None);
+    let root = SearchRoot::new(fixture_root("policy")).include_ignored(true);
+    let configured = root.path.clone();
+    let policy = PathPolicy::new(SearchConfig { roots: vec![root] });
+    let decision = policy.evaluate(
+      &configured
+        .join("project")
+        .join("target")
+        .join("debug")
+        .join("app"),
+      None,
+    );
 
     assert!(decision.allowed);
     assert!(decision.ignored);
@@ -251,14 +277,16 @@ mod tests {
 
   #[test]
   fn explicit_root_under_hidden_parent_does_not_hide_every_child() {
-    let policy = PathPolicy::new(SearchConfig {
-      roots: vec![SearchRoot::new("/Users/alice/.codex/worktree/project")],
-    });
-
-    let decision = policy.evaluate(
-      Path::new("/Users/alice/.codex/worktree/project/src/main.rs"),
-      None,
+    let root = SearchRoot::new(
+      fixture_root("hidden-parent")
+        .join(".codex")
+        .join("worktree")
+        .join("project"),
     );
+    let configured = root.path.clone();
+    let policy = PathPolicy::new(SearchConfig { roots: vec![root] });
+
+    let decision = policy.evaluate(&configured.join("src").join("main.rs"), None);
 
     assert!(decision.allowed);
     assert!(!decision.hidden);
@@ -266,14 +294,16 @@ mod tests {
 
   #[test]
   fn hidden_directories_inside_explicit_root_are_still_hidden() {
-    let policy = PathPolicy::new(SearchConfig {
-      roots: vec![SearchRoot::new("/Users/alice/.codex/worktree/project")],
-    });
-
-    let decision = policy.evaluate(
-      Path::new("/Users/alice/.codex/worktree/project/.cache/file"),
-      None,
+    let root = SearchRoot::new(
+      fixture_root("hidden-parent")
+        .join(".codex")
+        .join("worktree")
+        .join("project"),
     );
+    let configured = root.path.clone();
+    let policy = PathPolicy::new(SearchConfig { roots: vec![root] });
+
+    let decision = policy.evaluate(&configured.join(".cache").join("file"), None);
 
     assert!(!decision.allowed);
     assert!(decision.hidden);

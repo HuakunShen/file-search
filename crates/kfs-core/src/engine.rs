@@ -122,19 +122,31 @@ fn extension_allowed(path: &Path, query: &SearchQuery) -> bool {
 
 #[cfg(test)]
 mod tests {
+  use std::path::PathBuf;
+
   use crate::{EntryKind, MatchKind, SearchRoot};
 
   use super::*;
 
-  fn engine() -> SearchEngineCore {
-    SearchEngineCore::new(SearchConfig {
-      roots: vec![SearchRoot::new("/Users/alice/Dev").with_priority(5)],
-    })
+  /// Fixture roots live under the platform's own temporary directory; a
+  /// POSIX literal is not absolute on Windows and would be grafted onto the
+  /// current drive by root normalization. See policy.rs#fixture_root.
+  fn fixture_root(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("kfs-core-{name}-{}", std::process::id()))
   }
 
-  fn candidate(path: &str, provider: &str) -> SearchCandidate {
+  fn engine() -> (SearchEngineCore, PathBuf) {
+    let root = SearchRoot::new(fixture_root("engine")).with_priority(5);
+    let configured = root.path.clone();
+    (
+      SearchEngineCore::new(SearchConfig { roots: vec![root] }),
+      configured,
+    )
+  }
+
+  fn candidate(path: PathBuf, provider: &str) -> SearchCandidate {
     SearchCandidate {
-      path: PathBuf::from(path),
+      path,
       kind: EntryKind::File,
       provider: provider.to_string(),
     }
@@ -143,39 +155,41 @@ mod tests {
   #[test]
   fn filters_denied_candidates_and_sorts_by_score() {
     let query = SearchQuery::new("package json").with_limit(10);
-    let results = engine().search_candidates(
+    let (engine, root) = engine();
+    let outside = fixture_root("engine-elsewhere");
+    let results = engine.search_candidates(
       &query,
       vec![
-        candidate("/Users/alice/Dev/app/package.json", "spotlight"),
+        candidate(root.join("app").join("package.json"), "spotlight"),
         candidate(
-          "/Users/alice/Dev/app/node_modules/pkg/package.json",
+          root
+            .join("app")
+            .join("node_modules")
+            .join("pkg")
+            .join("package.json"),
           "spotlight",
         ),
-        candidate("/Users/alice/Documents/package.json", "spotlight"),
+        candidate(outside.join("documents").join("package.json"), "spotlight"),
         candidate(
-          "/Users/alice/Dev/app/src/package_json_notes.md",
+          root.join("app").join("src").join("package_json_notes.md"),
           "spotlight",
         ),
       ],
     );
 
     assert_eq!(results.len(), 2);
-    assert_eq!(
-      results[0].path,
-      PathBuf::from("/Users/alice/Dev/app/package.json")
-    );
+    assert_eq!(results[0].path, root.join("app").join("package.json"));
     assert!(results[0].score > results[1].score);
   }
 
   #[test]
   fn dedupes_paths_and_keeps_highest_score() {
     let query = SearchQuery::new("readme");
-    let results = engine().search_candidates(
+    let (engine, root) = engine();
+    let path = root.join("readme.md");
+    let results = engine.search_candidates(
       &query,
-      vec![
-        candidate("/Users/alice/Dev/readme.md", "weak"),
-        candidate("/Users/alice/Dev/readme.md", "strong"),
-      ],
+      vec![candidate(path.clone(), "weak"), candidate(path, "strong")],
     );
 
     assert_eq!(results.len(), 1);
@@ -186,26 +200,27 @@ mod tests {
   fn extension_filter_limits_results() {
     let mut query = SearchQuery::new("readme");
     query.extensions = vec!["md".to_string()];
-    let results = engine().search_candidates(
+    let (engine, root) = engine();
+    let results = engine.search_candidates(
       &query,
       vec![
-        candidate("/Users/alice/Dev/readme.md", "spotlight"),
-        candidate("/Users/alice/Dev/readme.txt", "spotlight"),
+        candidate(root.join("readme.md"), "spotlight"),
+        candidate(root.join("readme.txt"), "spotlight"),
       ],
     );
 
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].path, PathBuf::from("/Users/alice/Dev/readme.md"));
+    assert_eq!(results[0].path, root.join("readme.md"));
   }
 
   #[test]
   fn explain_reports_policy_and_score() {
     let query = SearchQuery::new("package json");
-    let explain =
-      engine().explain_path(Path::new("/Users/alice/Dev/app/package.json"), Some(&query));
+    let (engine, root) = engine();
+    let explain = engine.explain_path(&root.join("app").join("package.json"), Some(&query));
 
     assert!(explain.allowed);
-    assert_eq!(explain.root, Some(PathBuf::from("/Users/alice/Dev")));
+    assert_eq!(explain.root, Some(root.clone()));
     assert!(explain.score.is_some_and(|score| score > 0));
     assert!(explain.matches.contains(&MatchKind::BasenameToken));
   }
@@ -213,7 +228,8 @@ mod tests {
   #[test]
   fn explain_denies_sensitive_path_without_scoring() {
     let query = SearchQuery::new("env");
-    let explain = engine().explain_path(Path::new("/Users/alice/Dev/.env"), Some(&query));
+    let (engine, root) = engine();
+    let explain = engine.explain_path(&root.join(".env"), Some(&query));
 
     assert!(!explain.allowed);
     assert!(explain.sensitive);
