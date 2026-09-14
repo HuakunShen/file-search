@@ -165,6 +165,11 @@ fn handle_request(
             200,
             json!({
                 "candidate_count": outcome.candidate_count,
+                "truncated": outcome.truncated,
+                "coverage": match outcome.coverage {
+                    kuntu_index::CandidateCoverage::Complete => "complete",
+                    kuntu_index::CandidateCoverage::Truncated => "truncated",
+                },
                 "results": outcome.results.into_iter().map(SearchResultDto::from).collect::<Vec<_>>()
             }),
           ),
